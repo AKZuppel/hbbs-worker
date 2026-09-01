@@ -1,0 +1,22 @@
+{
+	"name": "hbbs-worker",
+	"private": true,
+	"cloudflare": {
+		"label": "Durable Objects worker for HBBS"
+	},
+	"dependencies": {
+		"@protobuf-ts/runtime": "^2.11.1",
+		"hono": "^4.10.4"
+	},
+	"devDependencies": {
+		"typescript": "5.8.3",
+		"wrangler": "4.45.3"
+	},
+	"scripts": {
+		"cf-typegen": "wrangler types",
+		"check": "tsc && wrangler deploy --dry-run",
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev"
+	}
+}
