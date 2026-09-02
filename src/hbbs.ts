@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import * as rendezvous from './hbbs-rendezvous'
-// import * as deskMsg from './hbbs-message'
+import { IdPk } from './hbbs-message'
+import nacl from 'tweetnacl'
 
 export class Hbbr extends DurableObject {
   // In-memory state
@@ -227,6 +228,22 @@ export class Hbbs extends DurableObject {
     console.log(`Handling relay response: ${res.version}`)
   }
 
+  signIdPk(targetId: string, targetPk: Uint8Array): Uint8Array {
+    const signSk = (this.env as { HBBS_SIGN_SK?: string }).HBBS_SIGN_SK
+    if (!signSk) {
+      console.log('HBBS_SIGN_SK not set, sending unsigned pk')
+      return targetPk
+    }
+    try {
+      const secretKey = Uint8Array.from(atob(signSk), c => c.charCodeAt(0))
+      const idPkBytes = IdPk.toBinary(IdPk.create({ id: targetId, pk: targetPk }))
+      return nacl.sign(idPkBytes, secretKey)
+    } catch (e) {
+      console.log(`signIdPk failed: ${e}`)
+      return targetPk
+    }
+  }
+
   handlePunchHoleRequest(req: rendezvous.PunchHoleRequest, socket: WebSocket) {
     const targetId = req?.id
     console.log(`Handling punch hole request to id: ${targetId}`)
@@ -273,6 +290,7 @@ export class Hbbs extends DurableObject {
         relayServer: `${relayUrl}/ws/relay/${uuid}`,
       })
     }, onlineSession.socket)
+    const signedPk = this.signIdPk(targetId, onlineSession.pk)
     this.sendRendezvous({
       relayResponse: rendezvous.RelayResponse.create({
         uuid: uuid,
@@ -280,7 +298,7 @@ export class Hbbs extends DurableObject {
         version: '1.4.3',
         union: {
           oneofKind: 'pk',
-          pk: onlineSession.pk,
+          pk: signedPk,
         },
       })
     }, socket)
