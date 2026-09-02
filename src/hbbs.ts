@@ -259,6 +259,7 @@ export class Hbbs extends DurableObject {
     random128bit.set(last32bit, 12)
 
     const relayUrl = (this.env as { HBBS_RELAY_URL?: string }).HBBS_RELAY_URL || 'ws://localhost'
+    const relayHost = relayUrl.replace(/^wss?:\/\//, '')
     // const uuid = crypto.randomUUID()
     // pre-warm DO, make sure both side connect to the same region's DO, reduce connection time
     const hbbrObjId = this.env.HBBR.newUniqueId()
@@ -270,21 +271,21 @@ export class Hbbs extends DurableObject {
         socketAddr: random128bit,
         id: targetId,
         uuid: uuid,
-        relayServer: `${relayUrl}/ws/relay/${uuid}`,
+        relayServer: `${relayHost}/ws/relay/${uuid}`,
       })
     }, onlineSession.socket)
     this.sendRendezvous({
       punchHoleResponse: rendezvous.PunchHoleResponse.create({
         socketAddr: random128bit,
         pk: onlineSession.pk,
-        relayServer: `${relayUrl}/ws/relay/${uuid}`,
+        relayServer: `${relayHost}/ws/relay/${uuid}`,
       })
     }, socket)
 
     this.sendRendezvous({
       relayResponse: rendezvous.RelayResponse.create({
         uuid: uuid,
-        relayServer: `${relayUrl}/ws/relay/${uuid}`,
+        relayServer: `${relayHost}/ws/relay/${uuid}`,
         version: '1.4.3',
       })
     }, socket)
