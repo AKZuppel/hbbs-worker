@@ -14,6 +14,9 @@ importers:
       hono:
         specifier: ^4.10.4
         version: 4.10.4
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
     devDependencies:
       typescript:
         specifier: 5.8.3
