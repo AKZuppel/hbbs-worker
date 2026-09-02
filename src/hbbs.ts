@@ -295,6 +295,7 @@ export class Hbbs extends DurableObject {
       ip: meta?.ip || '',
       id: peerId,
       uuid: peerUuid,
+      pk: req.pk,
     })
     this.sessions.set(peerId, {
       ip: meta?.ip || '',
