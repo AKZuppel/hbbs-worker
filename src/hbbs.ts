@@ -274,17 +274,14 @@ export class Hbbs extends DurableObject {
       })
     }, onlineSession.socket)
     this.sendRendezvous({
-      punchHoleResponse: rendezvous.PunchHoleResponse.create({
-        socketAddr: random128bit,
-        pk: onlineSession.pk,
-      })
-    }, socket)
-
-    this.sendRendezvous({
       relayResponse: rendezvous.RelayResponse.create({
         uuid: uuid,
         relayServer: `${relayUrl}/ws/relay/${uuid}`,
         version: '1.4.3',
+        union: {
+          oneofKind: 'pk',
+          pk: onlineSession.pk,
+        },
       })
     }, socket)
   }
