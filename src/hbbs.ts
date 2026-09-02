@@ -121,6 +121,7 @@ export class Hbbs extends DurableObject {
     ip: string,
     id: string,
     uuid: string,
+    pk: Uint8Array,
     socket: WebSocket,
   }> = new Map()
 
@@ -299,6 +300,7 @@ export class Hbbs extends DurableObject {
       ip: meta?.ip || '',
       id: peerId,
       uuid: peerUuid,
+      pk: req.pk, 
       socket: socket
     })
     this.sendRendezvous({
