@@ -274,8 +274,9 @@ export class Hbbs extends DurableObject {
       })
     }, onlineSession.socket)
     this.sendRendezvous({
-      relayResponse: rendezvous.RelayResponse.create({
-        uuid: uuid,
+      punchHoleResponse: rendezvous.PunchHoleResponse.create({
+        socketAddr: random128bit,
+        pk: onlineSession.pk,
         relayServer: `${relayUrl}/ws/relay/${uuid}`,
         version: '1.4.3',
       })
@@ -301,7 +302,7 @@ export class Hbbs extends DurableObject {
       ip: meta?.ip || '',
       id: peerId,
       uuid: peerUuid,
-      pk: req.pk, 
+      pk: req.pk,
       socket: socket
     })
     this.sendRendezvous({
