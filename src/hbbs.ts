@@ -228,34 +228,18 @@ export class Hbbs extends DurableObject {
     console.log(`Handling relay response: ${res.version}`)
   }
 
-  // Signiert eine IdPk{id, pk}-Nachricht mit dem privaten Server-Schluessel
-  // (HBBS_SIGN_SK, base64). Erzeugt das kombinierte NaCl-Signaturformat
-  // (Signatur + Nachricht), das der Client per sodiumoxide::sign::verify()
-  // gegen den im "Key"-Feld hinterlegten oeffentlichen Schluessel prueft.
-  // Ohne gueltiges Secret wird der rohe, unsignierte Key zurueckgegeben -
-  // der Client zeigt dann weiterhin die Vertrauenswarnung, die Verbindung
-  // funktioniert aber trotzdem.
   signIdPk(targetId: string, targetPk: Uint8Array): Uint8Array {
     const signSk = (this.env as { HBBS_SIGN_SK?: string }).HBBS_SIGN_SK
     if (!signSk) {
-      console.log('signIdPk: HBBS_SIGN_SK not set, sending unsigned pk')
+      console.log('HBBS_SIGN_SK not set, sending unsigned pk')
       return targetPk
     }
-    console.log(`signIdPk: id=${targetId} targetPk.length=${targetPk.length} signSk.length=${signSk.length}`)
     try {
       const secretKey = Uint8Array.from(atob(signSk), c => c.charCodeAt(0))
-      console.log(`signIdPk: decoded secretKey.length=${secretKey.length} (erwartet: 64)`)
-      if (secretKey.length !== 64) {
-        console.log('signIdPk: UNEXPECTED secretKey length, aborting sign, sending unsigned pk')
-        return targetPk
-      }
       const idPkBytes = IdPk.toBinary(IdPk.create({ id: targetId, pk: targetPk }))
-      console.log(`signIdPk: idPkBytes.length=${idPkBytes.length} hex=${Array.from(idPkBytes).map(b => b.toString(16).padStart(2, '0')).join('')}`)
-      const signed = nacl.sign(idPkBytes, secretKey)
-      console.log(`signIdPk: signed.length=${signed.length} (erwartet: 64 + ${idPkBytes.length} = ${64 + idPkBytes.length})`)
-      return signed
+      return nacl.sign(idPkBytes, secretKey)
     } catch (e) {
-      console.log(`signIdPk: EXCEPTION: ${e}`)
+      console.log(`signIdPk failed: ${e}`)
       return targetPk
     }
   }
@@ -307,11 +291,6 @@ export class Hbbs extends DurableObject {
       })
     }, onlineSession.socket)
 
-    // HINWEIS: Erneuter Versuch nach Cross-Language-Verifikation (JS-Signatur
-    // erfolgreich mit echtem sodiumoxide getestet, siehe Doku). Ausfuehrliches
-    // Logging aktiv, um bei erneuter Regression sofort die Ursache zu sehen.
-    console.log(`vor signIdPk: onlineSession.pk vorhanden=${!!onlineSession.pk} length=${onlineSession.pk?.length}`)
-    const signedPk = this.signIdPk(targetId, onlineSession.pk)
     this.sendRendezvous({
       relayResponse: rendezvous.RelayResponse.create({
         uuid: uuid,
@@ -319,7 +298,7 @@ export class Hbbs extends DurableObject {
         version: '1.4.3',
         union: {
           oneofKind: 'pk',
-          pk: signedPk,
+          pk: onlineSession.pk,
         },
       })
     }, socket)
