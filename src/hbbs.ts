@@ -290,7 +290,7 @@ export class Hbbs extends DurableObject {
         relayServer: `${relayUrl}/ws/relay/${uuid}`,
       })
     }, onlineSession.socket)
-    const signedPk = this.signIdPk(targetId, onlineSession.pk)
+
     this.sendRendezvous({
       relayResponse: rendezvous.RelayResponse.create({
         uuid: uuid,
@@ -298,7 +298,7 @@ export class Hbbs extends DurableObject {
         version: '1.4.3',
         union: {
           oneofKind: 'pk',
-          pk: signedPk,
+          pk: onlineSession.pk,
         },
       })
     }, socket)
