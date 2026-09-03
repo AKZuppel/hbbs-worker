@@ -12,6 +12,8 @@ Set Api Server to https://localhost or https://your-worker-url to enable wss con
 
 Goto https://rustdesk.com/web/ set Network setting to your-worker-url, control your desk by web
 
+Based on https://github.com/lichon/hbbs-worker
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lichon/hbbs-worker)
 
 <!-- dash-content-end -->
