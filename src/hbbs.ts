@@ -228,19 +228,35 @@ export class Hbbs extends DurableObject {
     console.log(`Handling relay response: ${res.version}`)
   }
 
-  signIdPk(targetId: string, targetPk: Uint8Array): Uint8Array {
+  // Signiert eine IdPk{id, pk}-Nachricht mit dem privaten Server-Schluessel
+  // (HBBS_SIGN_SK, base64). Erzeugt das kombinierte NaCl-Signaturformat
+  // (Signatur + Nachricht), das der Client per sodiumoxide::sign::verify()
+  // gegen den im "Key"-Feld hinterlegten oeffentlichen Schluessel prueft.
+  // Gibt null zurueck, wenn nicht signiert werden kann (Secret fehlt/ungueltig).
+  // Der Aufrufer faellt dann auf den rohen, unsignierten Key zurueck UND meldet
+  // dem Pi secure=false - beide Seiten muessen sich ueber den Modus einig sein.
+  signIdPk(targetId: string, targetPk: Uint8Array): Uint8Array | null {
     const signSk = (this.env as { HBBS_SIGN_SK?: string }).HBBS_SIGN_SK
     if (!signSk) {
-      console.log('HBBS_SIGN_SK not set, sending unsigned pk')
-      return targetPk
+      console.log('signIdPk: HBBS_SIGN_SK not set, sending unsigned pk')
+      return null
     }
+    console.log(`signIdPk: id=${targetId} targetPk.length=${targetPk.length} signSk.length=${signSk.length}`)
     try {
       const secretKey = Uint8Array.from(atob(signSk), c => c.charCodeAt(0))
+      console.log(`signIdPk: decoded secretKey.length=${secretKey.length} (erwartet: 64)`)
+      if (secretKey.length !== 64) {
+        console.log('signIdPk: UNEXPECTED secretKey length, aborting sign, sending unsigned pk')
+        return null
+      }
       const idPkBytes = IdPk.toBinary(IdPk.create({ id: targetId, pk: targetPk }))
-      return nacl.sign(idPkBytes, secretKey)
+      console.log(`signIdPk: idPkBytes.length=${idPkBytes.length} hex=${Array.from(idPkBytes).map(b => b.toString(16).padStart(2, '0')).join('')}`)
+      const signed = nacl.sign(idPkBytes, secretKey)
+      console.log(`signIdPk: signed.length=${signed.length} (erwartet: 64 + ${idPkBytes.length} = ${64 + idPkBytes.length})`)
+      return signed
     } catch (e) {
-      console.log(`signIdPk failed: ${e}`)
-      return targetPk
+      console.log(`signIdPk: EXCEPTION: ${e}`)
+      return null
     }
   }
 
@@ -282,12 +298,23 @@ export class Hbbs extends DurableObject {
     this.env.HBBR.get(hbbrObjId).warmup()
     const uuid = hbbrObjId.toString()
 
+    // Signieren VOR dem Versand, weil das secure-Flag davon abhaengt.
+    // Der Pi liest rr.secure aus der RequestRelay-Nachricht: nur bei true
+    // sendet er ein SignedId und wartet auf den PublicKey des Clients. Der
+    // Client erwartet diesen Handshake genau dann, wenn der pk in der
+    // RelayResponse gueltig signiert ist. Beide Seiten muessen uebereinstimmen,
+    // sonst laeuft der Handshake auseinander (schwarzes Bild).
+    const signedPk = this.signIdPk(targetId, onlineSession.pk)
+    const secure = signedPk !== null
+    console.log(`handlePunchHoleRequest: secure=${secure} target=${targetId}`)
+
     this.sendRendezvous({
       requestRelay: rendezvous.RequestRelay.create({
         socketAddr: random128bit,
         id: targetId,
         uuid: uuid,
         relayServer: `${relayUrl}/ws/relay/${uuid}`,
+        secure: secure,
       })
     }, onlineSession.socket)
 
@@ -298,7 +325,7 @@ export class Hbbs extends DurableObject {
         version: '1.4.3',
         union: {
           oneofKind: 'pk',
-          pk: onlineSession.pk,
+          pk: signedPk ?? onlineSession.pk,
         },
       })
     }, socket)
