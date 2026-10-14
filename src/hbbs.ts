@@ -10,6 +10,16 @@ export class Hbbr extends DurableObject {
   cachedMessagesFromInit: Array<string | ArrayBuffer> = []
   cachedMessagesFromAcceptor: Array<string | ArrayBuffer> = []
 
+  fwdCount = 0
+  // Loggt die ersten Nachrichten pro Relay-Sitzung (Richtung, Laenge), damit
+  // sichtbar wird, ob die Handshake-Frames (SignedId/PublicKey) ankommen.
+  logFwd(dir: string, message: string | ArrayBuffer, how: string) {
+    if (this.fwdCount >= 12) return
+    this.fwdCount++
+    const len = typeof message === 'string' ? message.length : message.byteLength
+    console.log(`hbbr fwd #${this.fwdCount} ${dir} len=${len} ${how}`)
+  }
+
   async warmup(): Promise<void> {
     console.log(`Hbbr warmup called`)
   }
@@ -35,9 +45,11 @@ export class Hbbr extends DurableObject {
       // }
       // message from initiator, forward to acceptor
       if (this.acceptor && this.acceptor.readyState === 1) {
+        this.logFwd('init->acc', message, 'sent')
         this.acceptor.send(message)
       } else {
         // cache the message until accaptor is ready
+        this.logFwd('init->acc', message, 'cached')
         this.cachedMessagesFromInit.push(message)
       }
       return
@@ -49,9 +61,11 @@ export class Hbbr extends DurableObject {
       // }
       // message from acceptor, forward to initiator
       if (this.initiator && this.initiator.readyState === 1) {
+        this.logFwd('acc->init', message, 'sent')
         this.initiator.send(message)
       } else {
         // cache the message until initiator is ready
+        this.logFwd('acc->init', message, 'cached')
         this.cachedMessagesFromAcceptor.push(message)
       }
       return
